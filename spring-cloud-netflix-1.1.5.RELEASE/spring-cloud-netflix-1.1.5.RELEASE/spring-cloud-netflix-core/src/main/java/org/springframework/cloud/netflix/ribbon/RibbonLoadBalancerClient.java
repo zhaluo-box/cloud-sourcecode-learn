@@ -49,7 +49,7 @@ public class RibbonLoadBalancerClient implements LoadBalancerClient {
 	}
 
 	/**
-	 *我也不知道干啥的
+	 *重写  LoadBalancerClient接口的 reconstructURI
 	 *
 	 * @param instance
 	 * @param original
@@ -58,8 +58,11 @@ public class RibbonLoadBalancerClient implements LoadBalancerClient {
 	 */
 	@Override
 	public URI reconstructURI(ServiceInstance instance, URI original) {
+		//判断实例不为空
 		Assert.notNull(instance, "instance can not be null");
+		// 获取服务实例的服务名
 		String serviceId = instance.getServiceId();
+		//
 		RibbonLoadBalancerContext context = this.clientFactory
 				.getLoadBalancerContext(serviceId);
 		Server server = new Server(instance.getHost(), instance.getPort());
@@ -84,9 +87,9 @@ public class RibbonLoadBalancerClient implements LoadBalancerClient {
 	/**
 	 *  execute 方法:
 	 *
-	 * @param serviceId
-	 * @param request
-	 * @param <T>
+	 * @param serviceId 服务名
+	 * @param request  LoadBalancerRequest
+	 * @param <T> 泛型
 	 * @return
 	 * @throws IOException
 	 * @author zhaluo
@@ -103,7 +106,7 @@ public class RibbonLoadBalancerClient implements LoadBalancerClient {
 		if (server == null) {
 			throw new IllegalStateException("No instances available for " + serviceId);
 		}
-		/*  */
+		/*  包装成RibbonServer */
 		RibbonServer ribbonServer = new RibbonServer(serviceId, server, isSecure(server,
 				serviceId), serverIntrospector(serviceId).getMetadata(server));
 
@@ -112,6 +115,9 @@ public class RibbonLoadBalancerClient implements LoadBalancerClient {
 		RibbonStatsRecorder statsRecorder = new RibbonStatsRecorder(context, server);
 
 		try {
+			/**
+			 * apply 向实际的服务实例发送请求
+			 */
 			T returnVal = request.apply(ribbonServer);
 			statsRecorder.recordStats(returnVal);
 			return returnVal;
@@ -164,12 +170,32 @@ public class RibbonLoadBalancerClient implements LoadBalancerClient {
 		return this.clientFactory.getLoadBalancer(serviceId);
 	}
 
+	/**
+	 * RibbonServer 实现了 ServiceInstance
+	 */
 	protected static class RibbonServer implements ServiceInstance {
+		/**
+		 * 服务名
+		 */
 		private final String serviceId;
+		/**
+		 * 服务
+		 */
 		private final Server server;
+		/**
+		 * 是否采用HTTPS
+		 */
 		private final boolean secure;
+		/**
+		 * 元数据map
+		 */
 		private Map<String, String> metadata;
 
+		/**
+		 * 构造 默认不采用HTTPS 还有一个空的map
+		 * @param serviceId
+		 * @param server
+		 */
 		protected RibbonServer(String serviceId, Server server) {
 			this(serviceId, server, false, Collections.<String, String> emptyMap());
 		}
